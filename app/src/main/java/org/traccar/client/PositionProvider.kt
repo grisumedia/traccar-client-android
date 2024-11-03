@@ -48,11 +48,33 @@ abstract class PositionProvider(
 
     protected fun processLocation(location: Location?) {
         val lastLocation = this.lastLocation
-        if (location != null &&
-            (lastLocation == null || location.time - lastLocation.time >= interval || distance > 0
-                    && location.distanceTo(lastLocation) >= distance || angle > 0
-                    && abs(location.bearing - lastLocation.bearing) >= angle)
-        ) {
+
+        var useLocation = true
+
+        if (location != null && lastLocation != null) {
+            if (distance > 0 && location.distanceTo(lastLocation) < distance) {
+                useLocation = false
+            }
+            else if (angle > 0 && abs(location.bearing - lastLocation.bearing) < angle) {
+                useLocation = false
+            }
+            else if (location.accuracy > lastLocation.accuracy && lastLocation.accuracy >= 0.1) {
+                var accuracyWorsening = location.accuracy / lastLocation.accuracy
+                if (location.accuracy < 0.1) {
+                    accuracyWorsening = MAXIMUM_ACCURACY_WORSENING + 1
+                }
+                val numberOfMissedIntervals = (location.time - lastLocation.time).toFloat() / interval.toFloat()
+
+                // New location accuracy is a lot worse than the last one
+                // and shall skip bad locations only MAXIMUM_MISS_INTERVAL times
+                if (accuracyWorsening > MAXIMUM_ACCURACY_WORSENING
+                    && numberOfMissedIntervals < MAXIMUM_MISS_INTERVAL) {
+                    useLocation = false
+                }
+            }
+        }
+
+        if (location != null && useLocation) {
             Log.i(TAG, "location new")
             this.lastLocation = location
             listener.onPositionUpdate(Position(deviceId, location, getBatteryStatus(context)))
@@ -78,6 +100,8 @@ abstract class PositionProvider(
     companion object {
         private val TAG = PositionProvider::class.java.simpleName
         const val MINIMUM_INTERVAL: Long = 1000
+        const val MAXIMUM_ACCURACY_WORSENING: Float = 3.0f
+        const val MAXIMUM_MISS_INTERVAL: Int = 3
     }
 
 }

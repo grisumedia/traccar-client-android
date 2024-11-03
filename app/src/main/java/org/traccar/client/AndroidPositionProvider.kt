@@ -33,6 +33,10 @@ class AndroidPositionProvider(context: Context, listener: PositionListener) : Po
         try {
             locationManager.requestLocationUpdates(
                     provider, if (distance > 0 || angle > 0) MINIMUM_INTERVAL else interval, 0f, this)
+            // Also request from passive provides as it is mainly free of cost
+            locationManager.requestLocationUpdates(
+                LocationManager.PASSIVE_PROVIDER, MINIMUM_INTERVAL, 0f, this)
+
         } catch (e: RuntimeException) {
             listener.onPositionError(e)
         }
